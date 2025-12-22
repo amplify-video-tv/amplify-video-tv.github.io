@@ -84,7 +84,7 @@ ordered.forEach(v=>{
   const d=document.createElement("div");
   d.className="item";
   d.dataset.id=v.id;
-  d.dataset.user=v.user; // SIMPAN USER
+  d.dataset.user=v.user;
   d.innerHTML=`
     <video src="${v.src}" muted loop playsinline></video>
     <div class="social">
@@ -97,13 +97,14 @@ ordered.forEach(v=>{
   feed.appendChild(d);
 });
 
-/* ================= TITLE UPDATE ================= */
+/* ================= TITLE ================= */
 function updateTitle(user){
   document.title = `${user} - Feed`;
 }
 
-/* ================= SWIPE TRACKING ================= */
+/* ================= SWIPE & ADS LOGIC ================= */
 let swipeCount = 0;
+let adStep = 0; // 0=Social,1=Banner,2=Popunder
 let lastActiveId = null;
 
 function updateURL(id){
@@ -117,18 +118,17 @@ const observer = new IntersectionObserver(entries=>{
     if(e.isIntersecting){
       v.play();
       updateURL(e.target.dataset.id);
-      updateTitle(e.target.dataset.user); // UPDATE TITLE
+      updateTitle(e.target.dataset.user);
 
       if(lastActiveId !== e.target.dataset.id){
         swipeCount++;
         lastActiveId = e.target.dataset.id;
 
         if(swipeCount === 3){
-          showInterstitial();
+          triggerAd();
           swipeCount = 0;
         }
       }
-
     } else {
       v.pause();
     }
@@ -136,10 +136,34 @@ const observer = new IntersectionObserver(entries=>{
 },{threshold:0.7});
 
 document.querySelectorAll(".item").forEach(i=>observer.observe(i));
-/* =============================================== */
 
-/* ================= INTERSTITIAL ================= */
-function showInterstitial(){
+/* ================= AD ROTATION ================= */
+function triggerAd(){
+  if(adStep === 0){
+    loadSocialBar();
+  }
+  else if(adStep === 1){
+    showBanner();
+  }
+  else if(adStep === 2){
+    loadPopunder();
+  }
+
+  adStep = (adStep + 1) % 3; // ROTASI
+}
+
+/* ================= SOCIAL BAR ================= */
+function loadSocialBar(){
+  if(document.getElementById("socialBar")) return;
+  const s=document.createElement("script");
+  s.id="socialBar";
+  s.src="https://beginshello.com/dc/a1/4d/dca14dec92458affc67118718553c06b.js";
+  s.async=true;
+  document.body.appendChild(s);
+}
+
+/* ================= BANNER INTERSTITIAL ================= */
+function showBanner(){
   if(document.getElementById("interstitial")) return;
 
   const wrap=document.createElement("div");
@@ -175,6 +199,13 @@ function showInterstitial(){
   const s=document.createElement("script");
   s.src="https://beginshello.com/89f8d8265af940ee076b4d5e2b851c58/invoke.js";
   document.getElementById("interstitialAd").appendChild(s);
+}
+
+/* ================= POPUNDER ================= */
+function loadPopunder(){
+  const s=document.createElement("script");
+  s.src="https://beginshello.com/94/8f/38/948f38c54e4a2e531127f3c221f414a7.js";
+  document.body.appendChild(s);
 }
 </script>
 
