@@ -28,6 +28,8 @@ video{
  height:100%;
  object-fit:cover;
 }
+
+/* SOUND */
 .sound{
  position:absolute;
  top:20px;
@@ -40,24 +42,87 @@ video{
  color:#fff;
  z-index:10;
 }
+
+/* ==== SWIPE HINT ==== */
+.swipe-hint{
+ position:absolute;
+ bottom:90px;
+ left:50%;
+ transform:translateX(-50%);
+ text-align:center;
+ color:#fff;
+ font-size:13px;
+ opacity:0;
+ animation:fadeInOut 3s ease forwards;
+ z-index:9;
+ pointer-events:none;
+}
+.swipe-hint span{
+ display:block;
+ font-size:26px;
+ animation:arrowMove 1s infinite;
+}
+
+@keyframes arrowMove{
+ 0%{transform:translateY(0)}
+ 50%{transform:translateY(-10px)}
+ 100%{transform:translateY(0)}
+}
+
+@keyframes fadeInOut{
+ 0%{opacity:0}
+ 20%{opacity:1}
+ 80%{opacity:1}
+ 100%{opacity:0}
+}
 </style>
 </head>
 
 <body>
 
+<!-- TOP BANNER -->
+<center>
+<script type="text/javascript">
+atOptions = {
+ 'key' : '281ad8525430aef7936dbd51dbb2cc46',
+ 'format' : 'iframe',
+ 'height' : 50,
+ 'width' : 320,
+ 'params' : {}
+};
+</script>
+<script type="text/javascript" src="https://beginshello.com/281ad8525430aef7936dbd51dbb2cc46/invoke.js"></script>
+</center>
+
 <div class="feed" id="feed"></div>
+
+<!-- POPUNDER (DITAHAN SAMPAI 3x SWIPE) -->
+<script id="popunder-script" data-src="https://beginshello.com/94/8f/38/948f38c54e4a2e531127f3c221f414a7.js"></script>
 
 <script>
 const feed = document.getElementById("feed");
 let currentVideo = null;
-let scrollLocked = false;
+let currentIndex = 0;
+
+/* ===== POPUNDER CONTROL ===== */
+let swipeCount = 0;
+let popTriggered = false;
+
+function triggerPopunder(){
+ if(popTriggered) return;
+ popTriggered = true;
+
+ const s = document.createElement("script");
+ s.src = document.getElementById("popunder-script").dataset.src;
+ document.body.appendChild(s);
+}
 
 /* ===== LOAD DATA ===== */
 const list = JSON.parse(localStorage.getItem("VIDEO_LIST")) || [];
 let start = parseInt(localStorage.getItem("START_INDEX")) || 0;
 if(!list.length) location.href="index.html";
 
-/* ===== ORDER LIST ===== */
+/* ===== ORDER ===== */
 const ordered = [...list.slice(start), ...list.slice(0,start)];
 
 /* ===== RENDER ===== */
@@ -70,6 +135,12 @@ ordered.forEach((v,i)=>{
  item.innerHTML = `
   <video src="${v.src}" muted loop playsinline></video>
   <div class="sound" onclick="toggleSound(this)">🔇</div>
+
+  ${i===0 ? `
+  <div class="swipe-hint">
+    <span>⬆⬆⬆</span>
+    Swipe up for next video
+  </div>` : ``}
  `;
  feed.appendChild(item);
 });
@@ -81,19 +152,32 @@ function toggleSound(btn){
  btn.textContent = v.muted ? "🔇" : "🔊";
 }
 
-/* ===== SCROLL LOCK ===== */
-function lockScroll(){
- scrollLocked = true;
- setTimeout(()=>scrollLocked=false, 500);
+/* ===== GO TO ===== */
+function goTo(index){
+ if(index < 0 || index >= feed.children.length) return;
+ feed.children[index].scrollIntoView({behavior:"smooth"});
 }
 
-feed.addEventListener("touchmove",e=>{
- if(scrollLocked) e.preventDefault();
-},{passive:false});
+/* ===== SWIPE DETECT ===== */
+let startY=0,endY=0;
 
-feed.addEventListener("wheel",e=>{
- if(scrollLocked) e.preventDefault();
-},{passive:false});
+feed.addEventListener("touchstart",e=>{
+ startY = e.touches[0].clientY;
+});
+
+feed.addEventListener("touchend",e=>{
+ endY = e.changedTouches[0].clientY;
+ const diff = startY - endY;
+ if(Math.abs(diff) < 50) return;
+
+ if(diff > 0){
+  swipeCount++;
+  if(swipeCount >= 3) triggerPopunder();
+  goTo(currentIndex + 1);
+ }else{
+  goTo(currentIndex - 1);
+ }
+});
 
 /* ===== OBSERVER ===== */
 const observer = new IntersectionObserver(entries=>{
@@ -103,11 +187,11 @@ const observer = new IntersectionObserver(entries=>{
   const sound = e.target.querySelector(".sound");
 
   if(e.isIntersecting){
-   lockScroll();
+   currentIndex = parseInt(e.target.dataset.index);
 
-   if(currentVideo && currentVideo !== v){
+   if(currentVideo && currentVideo!==v){
     currentVideo.pause();
-    currentVideo.muted = true;
+    currentVideo.muted=true;
    }
 
    currentVideo = v;
@@ -115,8 +199,7 @@ const observer = new IntersectionObserver(entries=>{
 
    history.replaceState(null,"","playback.html?vid="+vid);
    document.title = "▶ " + vid;
-
-   sound.textContent = v.muted ? "🔇" : "🔊";
+   sound.textContent = v.muted?"🔇":"🔊";
   }else{
    v.pause();
   }
@@ -126,18 +209,14 @@ const observer = new IntersectionObserver(entries=>{
 document.querySelectorAll(".item").forEach(i=>observer.observe(i));
 
 /* ===== JUMP FROM URL ===== */
-const urlVid = new URLSearchParams(location.search).get("vid");
+const urlVid=new URLSearchParams(location.search).get("vid");
 if(urlVid){
- const idx = ordered.findIndex(v=>v.id===urlVid);
- if(idx > -1){
-  setTimeout(()=>{
-   feed.children[idx].scrollIntoView();
-  },200);
- }
+ const idx=ordered.findIndex(v=>v.id===urlVid);
+ if(idx>-1) setTimeout(()=>goTo(idx),200);
 }
 </script>
 
-  <!-- Histats.com  START  (aync)-->
+<!-- Histats.com  START  (aync)-->
 <script type="text/javascript">var _Hasync= _Hasync|| [];
 _Hasync.push(['Histats.start', '1,4992245,4,511,95,18,00000000']);
 _Hasync.push(['Histats.fasi', '1']);
