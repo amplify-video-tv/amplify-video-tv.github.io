@@ -1,21 +1,40 @@
+
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Feed</title>
+<title>Amplify Video Tv | Boutique dorothy/</title>
 
 <style>
 html,body{
   margin:0;
   height:100%;
   background:#000;
+  overflow:hidden;
 }
 
+/* ===== TOP AD ===== */
+#ad-top{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:50px;
+  z-index:9999;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:#000;
+}
+
+/* ===== FEED ===== */
 .feed{
   height:100%;
   overflow-y:scroll;
   scroll-snap-type:y mandatory;
+  -webkit-overflow-scrolling:touch;
+  padding-top:50px;
 }
 
 .item{
@@ -30,185 +49,169 @@ video{
   object-fit:cover;
 }
 
-.user{
+/* USER INFO */
+.user-box{
   position:absolute;
   bottom:20px;
   left:12px;
+  display:flex;
+  align-items:center;
+  gap:8px;
   color:#fff;
   font-size:13px;
 }
 
-.social{
+.avatar{
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  border:2px solid #fff;
+}
+
+/* ACTIONS */
+.actions{
   position:absolute;
   right:12px;
   bottom:80px;
   display:flex;
   flex-direction:column;
-  align-items:center;
   gap:18px;
   color:#fff;
+  font-size:22px;
+  text-align:center;
 }
 
-.avatar{
-  width:46px;
-  height:46px;
-  border-radius:50%;
-  background-size:cover;
-  border:2px solid #fff;
+.actions div{
+  cursor:pointer;
+  user-select:none;
 }
 
 .count{
-  font-size:11px;
+  font-size:12px;
   opacity:.8;
+}
+
+/* SOUND */
+.sound{
+  position:absolute;
+  top:20px;
+  right:20px;
+  font-size:22px;
+  background:rgba(0,0,0,.4);
+  padding:8px;
+  border-radius:50%;
+  cursor:pointer;
 }
 </style>
 </head>
-
 <body>
 
 <div class="feed" id="feed"></div>
 
 <script>
-/* ================= VIDEO FEED ================= */
+let currentVideo=null;
+
+/* ===== TOGGLE SOUND PER VIDEO ===== */
+function toggleSound(btn){
+  const item=btn.closest(".item");
+  const video=item.querySelector("video");
+
+  video.muted=!video.muted;
+  btn.textContent=video.muted?"🔇":"🔊";
+}
+
+/* ===== VIDEO FEED ===== */
 const list = JSON.parse(localStorage.getItem("VIDEO_LIST")) || [];
 let start = parseInt(localStorage.getItem("START_INDEX")) || 0;
 if(!list.length) location.href="index.html";
 
-const feed = document.getElementById("feed");
-const ordered = [...list.slice(start), ...list.slice(0,start)];
+const feed=document.getElementById("feed");
+const ordered=[...list.slice(start),...list.slice(0,start)];
 
 ordered.forEach(v=>{
-  const like=Math.floor(Math.random()*9000)+1000;
-  const com=Math.floor(Math.random()*4000)+300;
+  const likes=Math.floor(Math.random()*900)+100;
+  const comments=Math.floor(Math.random()*300)+20;
+  const avatar=`https://i.pravatar.cc/150?u=${v.user}`;
 
   const d=document.createElement("div");
   d.className="item";
-  d.dataset.id=v.id;
-  d.dataset.user=v.user;
   d.innerHTML=`
     <video src="${v.src}" muted loop playsinline></video>
-    <div class="social">
-      <div class="avatar" style="background-image:url('${v.avatar}')"></div>
-      <div>❤️<div class="count">${like}</div></div>
-      <div>💬<div class="count">${com}</div></div>
+
+    <div class="sound" onclick="toggleSound(this)">🔇</div>
+
+    <div class="user-box">
+      <img class="avatar" src="${avatar}">
+      <div>@${v.user}</div>
     </div>
-    <div class="user">${v.user}</div>
+
+    <div class="actions">
+      <div onclick="like(this)">
+        ❤️
+        <div class="count">${likes}</div>
+      </div>
+      <div onclick="alert('Komentar coming soon')">
+        💬
+        <div class="count">${comments}</div>
+      </div>
+    </div>
   `;
   feed.appendChild(d);
 });
 
-/* ================= TITLE ================= */
-function updateTitle(user){
-  document.title = `${user} - Feed`;
+/* ===== LIKE ===== */
+function like(el){
+  el.classList.toggle("liked");
+  const c=el.querySelector(".count");
+  c.textContent=parseInt(c.textContent)+(el.classList.contains("liked")?1:-1);
 }
 
-/* ================= SWIPE & ADS LOGIC ================= */
-let swipeCount = 0;
-let adStep = 0; // 0=Social,1=Banner,2=Popunder
-let lastActiveId = null;
-
-function updateURL(id){
-  history.replaceState({}, "", "playback.html?vid="+id);
+/* ===== SCROLL LOCK ===== */
+let scrollLocked=false;
+function lockScroll(){
+  scrollLocked=true;
+  setTimeout(()=>scrollLocked=false,600);
 }
 
-const observer = new IntersectionObserver(entries=>{
+feed.addEventListener("wheel",e=>{
+  if(scrollLocked) e.preventDefault();
+},{passive:false});
+
+feed.addEventListener("touchmove",e=>{
+  if(scrollLocked) e.preventDefault();
+},{passive:false});
+
+/* ===== OBSERVER ===== */
+const observer=new IntersectionObserver(entries=>{
   entries.forEach(e=>{
-    const v = e.target.querySelector("video");
+    const v=e.target.querySelector("video");
+    const soundBtn=e.target.querySelector(".sound");
 
     if(e.isIntersecting){
-      v.play();
-      updateURL(e.target.dataset.id);
-      updateTitle(e.target.dataset.user);
+      lockScroll();
 
-      if(lastActiveId !== e.target.dataset.id){
-        swipeCount++;
-        lastActiveId = e.target.dataset.id;
-
-        if(swipeCount === 3){
-          triggerAd();
-          swipeCount = 0;
-        }
+      if(currentVideo && currentVideo!==v){
+        currentVideo.pause();
+        currentVideo.muted=true;
+        currentVideo.currentTime=0;
       }
-    } else {
+
+      currentVideo=v;
+      v.play().catch(()=>{});
+
+      // update icon sesuai status video
+      soundBtn.textContent=v.muted?"🔇":"🔊";
+    }else{
       v.pause();
     }
   });
-},{threshold:0.7});
+},{threshold:0.8});
 
 document.querySelectorAll(".item").forEach(i=>observer.observe(i));
-
-/* ================= AD ROTATION ================= */
-function triggerAd(){
-  if(adStep === 0){
-    loadSocialBar();
-  }
-  else if(adStep === 1){
-    showBanner();
-  }
-  else if(adStep === 2){
-    loadPopunder();
-  }
-
-  adStep = (adStep + 1) % 3; // ROTASI
-}
-
-/* ================= SOCIAL BAR ================= */
-function loadSocialBar(){
-  if(document.getElementById("socialBar")) return;
-  const s=document.createElement("script");
-  s.id="socialBar";
-  s.src="https://beginshello.com/dc/a1/4d/dca14dec92458affc67118718553c06b.js";
-  s.async=true;
-  document.body.appendChild(s);
-}
-
-/* ================= BANNER INTERSTITIAL ================= */
-function showBanner(){
-  if(document.getElementById("interstitial")) return;
-
-  const wrap=document.createElement("div");
-  wrap.id="interstitial";
-  wrap.style=`
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,.9);
-    z-index:9999999;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-  `;
-
-  wrap.innerHTML=`
-    <div style="position:relative">
-      <div onclick="document.getElementById('interstitial').remove()"
-      style="position:absolute;top:-30px;right:0;color:#fff;font-size:22px;cursor:pointer">✕</div>
-      <div id="interstitialAd"></div>
-    </div>
-  `;
-
-  document.body.appendChild(wrap);
-
-  window.atOptions = {
-    key : '89f8d8265af940ee076b4d5e2b851c58',
-    format : 'iframe',
-    height : 250,
-    width : 300,
-    params : {}
-  };
-
-  const s=document.createElement("script");
-  s.src="https://beginshello.com/89f8d8265af940ee076b4d5e2b851c58/invoke.js";
-  document.getElementById("interstitialAd").appendChild(s);
-}
-
-/* ================= POPUNDER ================= */
-function loadPopunder(){
-  const s=document.createElement("script");
-  s.src="https://beginshello.com/94/8f/38/948f38c54e4a2e531127f3c221f414a7.js";
-  document.body.appendChild(s);
-}
 </script>
 
+</body>
+</html>
 <!-- Histats.com  START  (aync)-->
 <script type="text/javascript">var _Hasync= _Hasync|| [];
 _Hasync.push(['Histats.start', '1,4992245,4,511,95,18,00000000']);
@@ -221,5 +224,3 @@ hs.src = ('//s10.histats.com/js15_as.js');
 })();</script>
 <noscript><a href="/" target="_blank"><img  src="//sstatic1.histats.com/0.gif?4992245&101" alt="" border="0"></a></noscript>
 <!-- Histats.com  END  -->
-</body>
-</html>
