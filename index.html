@@ -74,7 +74,7 @@ function render(list){
    <video src="${v.src}#t=0.1" muted playsinline controls="false" controlslist="nodownload noplaybackrate nofullscreen" disablepictureinpicture oncontextmenu="return false">
    <div class="label">${v.user}</div>`;
   d.onclick=()=>{
-    localStorage.setItem("VIDEO_LIST",JSON.stringify([MAIN,...MORE]));
+    localStorage.setItem("VIDEO_LIST",JSON.stringify([...MAIN,...MORE]));
     localStorage.setItem("START_INDEX",i);
     location.href="playback.html?vid="+v.id;
   };
@@ -104,3 +104,4 @@ hs.src = ('//s10.histats.com/js15_as.js');
 })();</script>
 <noscript><a href="/" target="_blank"><img  src="//sstatic1.histats.com/0.gif?4992245&101" alt="" border="0"></a></noscript>
 <!-- Histats.com  END  -->
+
